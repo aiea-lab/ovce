@@ -169,12 +169,12 @@ The paper-specific reproduction commands are documented in [PAPER.md](PAPER.md).
 
 If you use this code in your research, please cite the paper associated with this repository:
 
-@article{
-anonymous2026open,
-title={Open Vocabulary Compositional Explanations for Neuron Alignment},
-author={Biagio {La Rosa} and Leilani H. Gilpin},
-journal={Transactions on Machine Learning Research},
-year={2026},
-url={https://openreview.net/forum?id=iS38vzTMdd},
+@article{ <br>
+anonymous2026open, <br>
+title={Open Vocabulary Compositional Explanations for Neuron Alignment}, <br>
+author={Biagio {La Rosa} and Leilani H. Gilpin}, <br>
+journal={Transactions on Machine Learning Research}, <br>
+year={2026}, <br>
+url={https://openreview.net/forum?id=iS38vzTMdd}, <br>
 }
 
