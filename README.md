@@ -146,7 +146,9 @@ The implementations of these segmentors are taken from the following official re
   https://github.com/xb534/SED/tree/main)
 - [OpenSeeD](
   https://github.com/idea-research/openseed)
-
+- [Open_Clip](
+  https://github.com/mlfoundations/open_clip
+)
 ### Datasets
 Supported datasets include:
 - `ade20k_150_test_sem_seg`

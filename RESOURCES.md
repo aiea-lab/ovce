@@ -39,5 +39,9 @@ Some of the segmentors (Mask2Former, MasQCLIP, SCAN, OpenSeeD) require Mask2form
 bash scripts/prepare_mask2former.sh
 ```
 
-**SED** and **SCAN** require also to install openclip
+**SED** and **SCAN** require also to install openclip.
+Run the following command from the segmentor/open_clip directory:
+```bash
+make install
+```
 
