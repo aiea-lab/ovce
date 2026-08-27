@@ -42,20 +42,6 @@ class Detectron2Segmentor:
                 dataset_segmentations.append(segmentations.cpu())
         return [dataset_segmentations]
 
-    def get_batch_segmentations(self):
-        """
-        Get the segmentations for the entire dataset, yielding one batch at a time.
-        Yields:
-            torch.Tensor: Tensor of shape (batch_size, height, width) containing the segmentations for the current batch.
-        """
-        with torch.no_grad():
-            for data in tqdm(self.data_loader, desc="Computing Batch Segmentations"):
-                segmentations = self.extract_segmentations(data)
-                segmentations = segmentations.cpu()
-                yield [segmentations]
-
-
-
     def set_data_loader(self, dataset_name, min_size, max_size):
         """
         Set the data loader for the model.
@@ -73,8 +59,54 @@ class Detectron2Segmentor:
         # Note that we use batch size 1 because the input and output (segmentations) may have different sizes. 
         # We want to avoid padding, and this choice makes easier the stacking in extract_segmentations
         self.data_loader = dataset_utils.get_data_loader(
-            dataset, transforms=augmentation, batch_size=1
+            dataset, transforms=augmentation, batch_size=1,
         )
+
+    def get_cached_batch_segmentations(self, segmentations_dir):
+        """
+        Get the segmentations for the entire dataset, yielding one batch at a time.
+        Args:
+            segmentations_dir (str): Directory where the segmentations will be saved.
+        Yields:
+            torch.Tensor: Tensor of shape (batch_size, height, width) containing the segmentations for the current batch.
+        """
+        cache_dir = os.path.join(segmentations_dir, "cache")
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+        with torch.no_grad():
+            for index, data in enumerate(tqdm(self.data_loader, desc="Computing Batch Segmentations")):
+                batch_output_path = os.path.join(cache_dir, f"batch_{index}.pt")
+                if os.path.exists(batch_output_path):
+                    # Load batch
+                    with open(batch_output_path, "rb") as f:
+                        segmentations = torch.load(f)
+                else:
+                    # Compute batch
+                    segmentations = self.extract_segmentations(data)
+                    segmentations = segmentations.cpu()
+
+                    # Save the segmentations for the current batch to disk
+                    with open(batch_output_path, "wb") as f:
+                        torch.save(segmentations, f)
+                        f.flush()
+                        os.fsync(f.fileno())
+                yield [segmentations]
+
+    def remove_cached_batch_segmentations(self, segmentations_dir):
+        """
+        Remove the cached segmentations for the entire dataset.
+        Args:
+            segmentations_dir (str): Directory where the segmentations are saved.
+        Returns:
+            None
+        """
+        cache_dir = os.path.join(segmentations_dir, "cache")
+        if os.path.exists(cache_dir):
+            for file in os.listdir(cache_dir):
+                file_path = os.path.join(cache_dir, file)
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+            os.rmdir(cache_dir)
 
     def save_segmentations(self, *, output_dir, parallel_concepts, mask_shape, batch_parsing=True):
         """
@@ -104,7 +136,7 @@ class Detectron2Segmentor:
             # In batch parsing, we process one batch at a time, while in dataset parsing, we process the entire dataset at once.
             # Batch parsing is slower but uses less memory. Dataset parsing is faster but uses more memory. 
             if batch_parsing:
-                parsed_segmentations = self.get_batch_segmentations()
+                parsed_segmentations = self.get_cached_batch_segmentations(output_dir)
             else:
                 parsed_segmentations = precomputed_segmentations
 
@@ -121,16 +153,21 @@ class Detectron2Segmentor:
                     for i, concept_mask in enumerate(concept_masks_batch):
                         concept_masks_set[i].append(concept_mask)
 
+            del parsed_segmentations # Free memory after processing the segmentations for this iteration
+                
             # Concatenate the concept masks for each concept and save them to disk
             for i, concept_label in enumerate(concept_labels_batch):
                 concept_masks = torch.cat(concept_masks_set[i], 0)
                 concept_masks = torch.reshape(
                         concept_masks, (concept_masks.shape[0], -1)).detach().cpu()
                 sparse_masks = sparse.csr_matrix(concept_masks.numpy())
-                output_path = os.path.join(output_dir, f"{concept_label}.npz")
-                sparse.save_npz(output_path, sparse_masks)
+                with open(os.path.join(output_dir, f"{concept_label}.npz"), "wb") as f:
+                    sparse.save_npz(f, sparse_masks)
             del concept_masks_set # Free memory after saving the concept masks to disk
 
+        # Remove the cached segmentations after saving the concept masks to disk
+        self.remove_cached_batch_segmentations(output_dir)
+        
     def load_concept_masks(self, segmentations_dir):
         """
         Load the concept masks from disk.
@@ -158,7 +195,8 @@ class Detectron2Segmentor:
                 # If any concept mask is missing, return None to indicate that the concept masks need to be regenerated.
                 return None
             else:
-                sparse_masks = sparse.load_npz(output_path)
+                with open(output_path, "rb") as f:
+                    sparse_masks = sparse.load_npz(f)
                 concept_masks.append(torch.from_numpy(sparse_masks.toarray()).bool())
         return concept_masks
         
@@ -237,7 +275,6 @@ class Detectron2Model(Detectron2Segmentor):
         """
         # Set data
         self.set_data_loader(dataset_name, cfg.INPUT.MIN_SIZE, cfg.INPUT.MAX_SIZE)
-
         # Set the model
         self.set_model(cfg, device=device)
         class_names = dataset_utils.get_class_names(dataset_name=dataset_name, custom_classes=custom_classes)
