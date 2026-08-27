@@ -4,7 +4,7 @@ from src.segmentor_wrapper import Detectron2GroundTruth, CATSeg, Masqclip, SED, 
 from utils import dataset_utils, common_utils
 
 
-def get_segmentor(*, segmentor_name, dataset_name, device): 
+def get_segmentor(*, segmentor_name, dataset_name, custom_classes, device): 
     """
     Load the appropriate segmentor based on the segmentor name. Set the model and concept labels according to the dataset.
     Args:
@@ -17,17 +17,17 @@ def get_segmentor(*, segmentor_name, dataset_name, device):
     if segmentor_name == "human":
         segmentor = Detectron2GroundTruth(dataset_name=dataset_name)
     elif segmentor_name == "catseg":
-        segmentor = CATSeg(dataset_name=dataset_name, device=device)
+        segmentor = CATSeg(dataset_name=dataset_name, device=device, custom_classes=custom_classes)
     elif segmentor_name == "masqclip":
-        segmentor = Masqclip(dataset_name=dataset_name, device=device)
+        segmentor = Masqclip(dataset_name=dataset_name, device=device, custom_classes=custom_classes)
     elif segmentor_name == "sed":
-        segmentor = SED(dataset_name=dataset_name, device=device)
+        segmentor = SED(dataset_name=dataset_name, device=device, custom_classes=custom_classes)
     elif segmentor_name == "scan":
-        segmentor = SCAN(dataset_name=dataset_name, device=device)
+        segmentor = SCAN(dataset_name=dataset_name, device=device, custom_classes=custom_classes)
     elif segmentor_name == "openseed":
-        segmentor = OpenSeeD(dataset_name=dataset_name,  device=device)
+        segmentor = OpenSeeD(dataset_name=dataset_name,  device=device, custom_classes=custom_classes)
     elif segmentor_name == "mask2former":
-        segmentor = Mask2Former(dataset_name=dataset_name, device=device)
+        segmentor = Mask2Former(dataset_name=dataset_name, device=device, custom_classes=custom_classes)
     else:
         raise ValueError(f"Segmentor {segmentor_name} not supported. Supported segmentors are: human, catseg, masqclip, sed, scan, openseed, mask2former")
     return segmentor
@@ -77,7 +77,7 @@ def get_masks(segmentor, *, segmentations_dir, mask_settings):
         segmentor_masks = segmentor.load_concept_masks(segmentations_dir=segmentations_dir)
     return segmentor_masks, generated
 
-def get_categorical_masks(segmentor, *, config, concept_set, mask_settings):
+def get_categorical_masks(*, config, concept_set, mask_settings):
     """
     Get the segmentor outputs (masks and labels) for the specified categorical configuration and concept set.
     Args:
@@ -98,8 +98,7 @@ def get_categorical_masks(segmentor, *, config, concept_set, mask_settings):
     regenerate = False
     for index_subset, concept_subset in enumerate(extract_category(concept_set)):
         # Recreate the segmentor per subset to avoid model state carryover across concept batches.
-        subset_segmentor = get_segmentor(segmentor_name=segmentor_name, dataset_name=dataset_name, device=device)
-        subset_segmentor.set_concept_labels(concept_subset)
+        subset_segmentor = get_segmentor(segmentor_name=segmentor_name, dataset_name=dataset_name, custom_classes=concept_subset, device=device)
 
         # Create a directory for the current subset of concepts
         subset_segmentations_dir = os.path.join(segmentations_dir, f"subset_{index_subset}")
@@ -132,17 +131,17 @@ def get_segmentor_outputs(config, concept_set=None):
     device = config.get_device()
     masks_settings = config.get_mask_settings()
     are_regenerated = False
-    segmentor = get_segmentor(segmentor_name=segmentor_name, dataset_name=dataset_name, device=device)
     if concept_set is None:
+        segmentor = get_segmentor(segmentor_name=segmentor_name, dataset_name=dataset_name, custom_classes=concept_set, device=device)
         masks, are_regenerated = get_masks(segmentor, segmentations_dir=config.get_segmentations_dir(), mask_settings=masks_settings)
         segmentor_labels = segmentor.concept_labels
+        del segmentor # Free memory after segmentations are extracted and saved to disk
     else:
-        masks, segmentor_labels, are_regenerated = get_categorical_masks(segmentor, config=config, concept_set=concept_set, mask_settings=masks_settings)
+        masks, segmentor_labels, are_regenerated = get_categorical_masks(config=config, concept_set=concept_set, mask_settings=masks_settings)
         if masks is None:
             raise ValueError(f"No masks found for the specified configuration. Please check the segmentor and dataset settings.")
 
     print(f"Loaded {len(masks)} segmentations for {segmentor_name} on {dataset_name}")
-    del segmentor # Free memory after segmentations are extracted and saved to disk
     return masks, segmentor_labels, are_regenerated
 
 

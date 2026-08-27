@@ -275,6 +275,7 @@ class Detectron2Model(Detectron2Segmentor):
         """
         # Set data
         self.set_data_loader(dataset_name, cfg.INPUT.MIN_SIZE, cfg.INPUT.MAX_SIZE)
+
         # Set the model
         self.set_model(cfg, device=device)
         class_names = dataset_utils.get_class_names(dataset_name=dataset_name, custom_classes=custom_classes)

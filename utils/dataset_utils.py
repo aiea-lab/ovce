@@ -54,7 +54,7 @@ def get_class_names(*, dataset_name: str, custom_classes: list = None):
     """
     if custom_classes is not None and isinstance(custom_classes, list):
         class_names = custom_classes
-    if dataset_name == 'cub200':
+    elif dataset_name == 'cub200':
         if custom_classes == 'granularity_0':
             class_names =  CUB.GRANULARITY_0
         elif custom_classes == 'granularity_1':
