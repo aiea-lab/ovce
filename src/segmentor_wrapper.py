@@ -275,7 +275,6 @@ class Detectron2Model(Detectron2Segmentor):
         """
         # Set data
         self.set_data_loader(dataset_name, cfg.INPUT.MIN_SIZE, cfg.INPUT.MAX_SIZE)
-
         # Set the model
         self.set_model(cfg, device=device)
         class_names = dataset_utils.get_class_names(dataset_name=dataset_name, custom_classes=custom_classes)
@@ -408,5 +407,5 @@ class Mask2Former(Detectron2Model):
     def set_concept_labels(self, class_names):
         print("Warning: Mask2Former is a closed vocabulary model, so we ignore the custom classes and use the class names used for training as the concept labels.")
         # Because Mask2Former is a closed vocabulary model, we use the class names used for training as the concept labels. We ignore the custom classes provided by the user.
-        self.concept_labels = dataset_utils.get_class_names(dataset_name='coco_2017_train_panoptic', custom_classes=[])
+        self.concept_labels = dataset_utils.get_class_names(dataset_name='coco_2017_train_panoptic', custom_classes=None)
         print(f"Using concept labels: {self.concept_labels}")

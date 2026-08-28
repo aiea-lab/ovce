@@ -27,7 +27,7 @@ def get_segmentor(*, segmentor_name, dataset_name, custom_classes, device):
     elif segmentor_name == "openseed":
         segmentor = OpenSeeD(dataset_name=dataset_name,  device=device, custom_classes=custom_classes)
     elif segmentor_name == "mask2former":
-        segmentor = Mask2Former(dataset_name=dataset_name, device=device, custom_classes=custom_classes)
+        segmentor = Mask2Former(dataset_name=dataset_name, device=device, custom_classes=None)
     else:
         raise ValueError(f"Segmentor {segmentor_name} not supported. Supported segmentors are: human, catseg, masqclip, sed, scan, openseed, mask2former")
     return segmentor
