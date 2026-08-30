@@ -1,0 +1,3 @@
+DATASETS:
+  TRAIN: ("ade20k_sem_seg_train",)
+  TEST: ("ade20k_sem_seg_val",)
